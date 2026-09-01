@@ -1,0 +1,21 @@
+packages:
+  - 'apps/web'
+  - 'apps/api'
+  - 'packages/shared'
+  - 'packages/security-engine'
+
+allowBuilds:
+  '@embedded-postgres/windows-x64': true
+  '@prisma/client': true
+  '@prisma/engines': true
+  argon2: true
+  esbuild: true
+  prisma: true
+
+# pnpm 11: allow native addon build scripts
+onlyBuiltDependencies:
+  - esbuild
+  - argon2
+  - '@prisma/client'
+  - '@prisma/engines'
+  - prisma

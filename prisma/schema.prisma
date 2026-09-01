@@ -1,0 +1,225 @@
+// ============================================================
+// WebShield — Prisma Schema
+// Phase 2: User, Session, AuditLog
+// Phase 3: Target, Scan, Finding
+// Phase 6: Report
+// Phase 7: RBAC, Suspension, Admin Audit Actions
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ─────────────────────────────────────────────────────────────────────
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum AuditAction {
+  REGISTER_SUCCESS
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGOUT
+  SESSION_REVOKED
+  ALL_SESSIONS_REVOKED
+  ADMIN_ACTION
+  TOKEN_REFRESHED
+  SCAN_CREATED
+  SCAN_COMPLETED
+  SCAN_FAILED
+  SCAN_CANCELLED
+  REPORT_GENERATED
+  REPORT_DOWNLOADED
+  USER_SUSPENDED
+  USER_REACTIVATED
+  ROLE_CHANGED
+  ADMIN_VIEWED_USER
+  ADMIN_VIEWED_SCAN
+  ADMIN_VIEWED_REPORT
+}
+
+enum ScanStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ReportStatus {
+  GENERATING
+  COMPLETED
+  FAILED
+}
+
+enum Severity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
+
+enum Confidence {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+// ── Models ────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         Role      @default(USER)
+  isSuspended  Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLoginAt  DateTime?
+
+  sessions  Session[]
+  auditLogs AuditLog[]
+  targets   Target[]
+  scans     Scan[]
+  reports   Report[]
+
+  @@index([email])
+  @@index([role])
+  @@index([isSuspended])
+  @@map("users")
+}
+
+model Session {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  userAgent String?
+  ipAddress String?
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("sessions")
+}
+
+model AuditLog {
+  id        String      @id @default(cuid())
+  userId    String?
+  action    AuditAction
+  ipAddress String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime    @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Target {
+  id            String   @id @default(cuid())
+  userId        String
+  url           String
+  normalizedUrl String
+  hostname      String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scans Scan[]
+
+  @@index([userId])
+  @@index([hostname])
+  @@map("targets")
+}
+
+model Scan {
+  id            String     @id @default(cuid())
+  targetId      String
+  userId        String
+  status        ScanStatus @default(QUEUED)
+  startedAt     DateTime?
+  completedAt   DateTime?
+  securityScore Int?
+  totalFindings Int        @default(0)
+  criticalCount Int        @default(0)
+  highCount     Int        @default(0)
+  mediumCount   Int        @default(0)
+  lowCount      Int        @default(0)
+  infoCount     Int        @default(0)
+  errorMessage  String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  target   Target    @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  findings Finding[]
+  reports  Report[]
+
+  @@index([userId])
+  @@index([targetId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("scans")
+}
+
+model Finding {
+  id                String     @id @default(cuid())
+  scanId            String
+  scanner           String
+  title             String
+  category          String
+  severity          Severity
+  confidence        Confidence
+  description       String
+  evidence          String?
+  impact            String?
+  remediation       String?
+  reference         String?
+  affectedComponent String?
+  createdAt         DateTime   @default(now())
+
+  scan Scan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  @@index([scanId])
+  @@index([severity])
+  @@index([category])
+  @@map("findings")
+}
+
+model Report {
+  id           String       @id @default(cuid())
+  scanId       String
+  userId       String
+  status       ReportStatus @default(GENERATING)
+  fileName     String
+  filePath     String
+  fileSize     Int?
+  errorMessage String?
+  generatedAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  scan Scan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([scanId])
+  @@map("reports")
+}

@@ -1,0 +1,25 @@
+{
+  "name": "webshield",
+  "version": "1.0.0",
+  "description": "WebShield — Web Security Assessment Platform",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n \"api,web\" -c \"cyan,magenta\" \"pnpm --filter @webshield/api dev\" \"pnpm --filter @webshield/web dev\"",
+    "dev:web": "pnpm --filter @webshield/web dev",
+    "dev:api": "pnpm --filter @webshield/api dev",
+    "build:engine": "pnpm --filter @webshield/security-engine build",
+    "build": "pnpm --filter @webshield/security-engine build && pnpm --filter @webshield/api build && pnpm --filter @webshield/web build",
+    "build:web": "pnpm --filter @webshield/web build",
+    "build:api": "pnpm --filter @webshield/api build",
+    "lint": "pnpm --filter @webshield/web lint && pnpm --filter @webshield/api lint",
+    "typecheck": "pnpm --filter @webshield/security-engine typecheck && pnpm --filter @webshield/web typecheck && pnpm --filter @webshield/api typecheck",
+    "test": "pnpm --filter @webshield/security-engine test && pnpm --filter @webshield/api test",
+    "format": "prettier --write \"apps/**/*.{ts,tsx,js,json}\" \"packages/**/*.{ts,js,json}\""
+  },
+  "devDependencies": {
+    "@prisma/client": "5.22.0",
+    "concurrently": "^8.2.2",
+    "prettier": "^3.3.3",
+    "prisma": "5.22.0"
+  }
+}
